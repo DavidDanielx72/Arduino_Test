@@ -272,4 +272,8 @@ app.get("/command", (req, res) => {
 
 app.listen(PORT, "0.0.0.0", () => {
     console.log("SERVER RUNNING ON PORT", PORT);
+   
+   app.get("/", (req, res) => {
+    res.send("Arduino Server is running 🚀");
+});
 });
