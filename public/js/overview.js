@@ -65,7 +65,7 @@ function applyUI(state) {
 
 async function fetchStatus() {
   try {
-    const res = await fetch('/status'); // ✅ FIXED
+    const res = await fetch('/status');
     const data = await res.json();
 
     applyUI(data.status);
@@ -81,7 +81,7 @@ async function fetchStatus() {
 
 toggleBtn.addEventListener('click', async () => {
   try {
-    const res = await fetch('/toggle', {   // ✅ FIXED (REMOVE /api)
+    const res = await fetch('/toggle', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
