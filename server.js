@@ -44,11 +44,11 @@ let autoArmTime = "16:00";
 let autoDisarmTime = "06:30";
 
 /* =========================
-   🔥 FIX: DAILY EXECUTION TRACKING
+   🔥 FIX: DAILY RUN TRACKERS (IMPORTANT FIX)
 ========================= */
 
-let lastArmRunDate = null;
-let lastDisarmRunDate = null;
+let lastArmRunKey = null;
+let lastDisarmRunKey = null;
 
 /* =========================
    TIME FORMATTER
@@ -84,24 +84,20 @@ function addHistory(description, source = "System", status = "Info") {
 }
 
 /* =========================
-   🔥 FIXED AUTO SCHEDULER
+   🔥 FIXED AUTO SCHEDULER (ROBUST + RELIABLE)
 ========================= */
 
 setInterval(() => {
 
     const now = new Date();
 
-    const currentTime =
-        String(now.getHours()).padStart(2, '0') +
-        ":" +
-        String(now.getMinutes()).padStart(2, '0');
+    const hour = String(now.getHours()).padStart(2, "0");
+    const minute = String(now.getMinutes()).padStart(2, "0");
+    const currentTime = `${hour}:${minute}`;
 
-    const today =
-        now.getFullYear() + "-" +
-        String(now.getMonth() + 1).padStart(2, "0") + "-" +
-        String(now.getDate()).padStart(2, "0");
+    const todayKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
 
-    /* RELEASE MANUAL OVERRIDE */
+    /* release override */
     if (manualOverride && Date.now() > overrideUntil) {
         manualOverride = false;
     }
@@ -110,23 +106,20 @@ setInterval(() => {
        AUTO ARM (FIXED)
     ========================= */
 
-    if (
-        !manualOverride &&
-        currentTime === autoArmTime &&
-        lastArmRunDate !== today
-    ) {
-        if (alarmStatus !== "armed") {
+    if (!manualOverride && currentTime === autoArmTime) {
 
-            alarmStatus = "armed";
-            lastArmRunDate = today;
+        const armKey = todayKey + "-ARM";
 
-            console.log("AUTO ARMED");
+        if (lastArmRunKey !== armKey) {
 
-            addHistory(
-                "AUTO ARMED",
-                "Scheduler",
-                "Armed"
-            );
+            if (alarmStatus !== "armed") {
+                alarmStatus = "armed";
+
+                addHistory("AUTO ARMED", "Scheduler", "Armed");
+                console.log("AUTO ARMED");
+            }
+
+            lastArmRunKey = armKey;
         }
     }
 
@@ -134,27 +127,24 @@ setInterval(() => {
        AUTO DISARM (FIXED)
     ========================= */
 
-    if (
-        !manualOverride &&
-        currentTime === autoDisarmTime &&
-        lastDisarmRunDate !== today
-    ) {
-        if (alarmStatus !== "disarmed") {
+    if (!manualOverride && currentTime === autoDisarmTime) {
 
-            alarmStatus = "disarmed";
-            lastDisarmRunDate = today;
+        const disarmKey = todayKey + "-DISARM";
 
-            console.log("AUTO DISARMED");
+        if (lastDisarmRunKey !== disarmKey) {
 
-            addHistory(
-                "AUTO DISARMED",
-                "Scheduler",
-                "Disarmed"
-            );
+            if (alarmStatus !== "disarmed") {
+                alarmStatus = "disarmed";
+
+                addHistory("AUTO DISARMED", "Scheduler", "Disarmed");
+                console.log("AUTO DISARMED");
+            }
+
+            lastDisarmRunKey = disarmKey;
         }
     }
 
-}, 5000); // better stability than 1s
+}, 1000); // keep 1s for accuracy
 
 /* =========================
    ESP32 EVENT RECEIVER
@@ -178,7 +168,7 @@ app.post("/event", (req, res) => {
         addHistory(msg, "Sensor", "Triggered");
     }
 
-    /* RFID TOGGLE (UNCHANGED — THIS IS CORRECT) */
+    /* RFID TOGGLE (UNCHANGED - WORKING LOGIC) */
     if (
         req.body.type === "rfid_tap" &&
         req.body.status === "toggle"
@@ -240,6 +230,7 @@ app.get("/status", (req, res) => {
 app.post("/arm", (req, res) => {
 
     alarmStatus = "armed";
+
     manualOverride = true;
     overrideUntil = Date.now() + 120000;
 
@@ -255,6 +246,7 @@ app.post("/arm", (req, res) => {
 app.post("/disarm", (req, res) => {
 
     alarmStatus = "disarmed";
+
     manualOverride = true;
     overrideUntil = Date.now() + 120000;
 
@@ -297,9 +289,9 @@ app.post("/set-times", (req, res) => {
     autoArmTime = req.body.armTime;
     autoDisarmTime = req.body.disarmTime;
 
-    /* RESET DAILY TRACKERS */
-    lastArmRunDate = null;
-    lastDisarmRunDate = null;
+    /* RESET RUN TRACKERS */
+    lastArmRunKey = null;
+    lastDisarmRunKey = null;
 
     addHistory(
         `AUTO TIMES UPDATED (${autoArmTime} - ${autoDisarmTime})`,
