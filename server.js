@@ -3,11 +3,6 @@ const cors = require("cors");
 const path = require("path");
 
 const app = express();
-
-/* =========================
-   PORT
-========================= */
-
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
@@ -22,7 +17,6 @@ let alarmStatus = "armed";
 let history = [];
 let lastSeen = 0;
 
-let autoMode = true;
 let manualOverride = false;
 let overrideUntil = 0;
 
@@ -34,24 +28,15 @@ let autoArmTime = "16:00";
 let autoDisarmTime = "06:30";
 
 /* =========================
-   SAFETY: TRACK LAST EXECUTION (FIXED PROPERLY)
+   SAFE EXECUTION TRACKERS
 ========================= */
 
-let lastArmMinute = null;
-let lastDisarmMinute = null;
+let lastArmKey = null;
+let lastDisarmKey = null;
 
 /* =========================
-   TIME HELPERS
+   HELPERS
 ========================= */
-
-function getTimeParts() {
-    const now = new Date();
-    return {
-        hour: String(now.getHours()).padStart(2, "0"),
-        minute: String(now.getMinutes()).padStart(2, "0"),
-        dayKey: `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`
-    };
-}
 
 function formatTime() {
     return new Date().toLocaleString("en-GB", {
@@ -63,10 +48,6 @@ function formatTime() {
         second: "2-digit"
     });
 }
-
-/* =========================
-   HISTORY
-========================= */
 
 function addHistory(description, source = "System", status = "Info") {
     history.push({
@@ -80,78 +61,76 @@ function addHistory(description, source = "System", status = "Info") {
 }
 
 /* =========================
-   🔥 ROBUST AUTO SYSTEM (FIXED)
+   ROBUST AUTO SCHEDULER (FIXED)
 ========================= */
 
 setInterval(() => {
 
-    const { hour, minute, dayKey } = getTimeParts();
-    const currentTime = `${hour}:${minute}`;
+    const now = new Date();
+    const currentTime = now.toTimeString().slice(0, 5);
+    const dayKey = now.toDateString();
 
-    /* release manual override safely */
+    /* release override */
     if (manualOverride && Date.now() > overrideUntil) {
         manualOverride = false;
     }
 
-    const armKey = `${dayKey}-ARM-${autoArmTime}`;
-    const disarmKey = `${dayKey}-DISARM-${autoDisarmTime}`;
+    const armKey = `${dayKey}-ARM`;
+    const disarmKey = `${dayKey}-DISARM`;
 
     /* =========================
-       AUTO ARM (FIXED RELIABLE)
+       AUTO ARM
     ========================= */
 
     if (
         currentTime === autoArmTime &&
-        lastArmMinute !== armKey
+        lastArmKey !== armKey &&
+        !manualOverride
     ) {
         if (alarmStatus !== "armed") {
-
             alarmStatus = "armed";
-
             addHistory("AUTO ARMED", "Scheduler", "Armed");
             console.log("AUTO ARMED");
         }
 
-        lastArmMinute = armKey;
+        lastArmKey = armKey;
     }
 
     /* =========================
-       AUTO DISARM (FIXED RELIABLE)
+       AUTO DISARM
     ========================= */
 
     if (
         currentTime === autoDisarmTime &&
-        lastDisarmMinute !== disarmKey
+        lastDisarmKey !== disarmKey &&
+        !manualOverride
     ) {
         if (alarmStatus !== "disarmed") {
-
             alarmStatus = "disarmed";
-
             addHistory("AUTO DISARMED", "Scheduler", "Disarmed");
             console.log("AUTO DISARMED");
         }
 
-        lastDisarmMinute = disarmKey;
+        lastDisarmKey = disarmKey;
     }
 
-}, 1000);
+}, 10000);
 
 /* =========================
-   ESP32 EVENT RECEIVER (RFID FIXED)
+   ESP32 EVENT (FIXED RFID)
 ========================= */
 
 app.post("/event", (req, res) => {
 
+    console.log("ESP32 EVENT:", JSON.stringify(req.body));
     lastSeen = Date.now();
-
-    console.log("ESP32 EVENT:", req.body);
 
     /* INTRUSION */
     if (req.body.type === "intrusion") {
 
         let msg = "INTRUSION DETECTED";
 
-        if (req.body.distance) {
+        if (req.body.distance && req.body.distance > 0) {
             msg += ` (${req.body.distance}cm)`;
         }
 
@@ -159,27 +138,30 @@ app.post("/event", (req, res) => {
     }
 
     /* =========================
-       RFID (FIXED: ALWAYS OVERRIDES CLEANLY)
+       RFID (ROBUST FIX)
     ========================= */
 
-    if (
-        req.body.type === "rfid_tap" &&
-        req.body.status === "toggle"
-    ) {
+    if (req.body.type === "rfid_tap") {
+
+        const uidValid = req.body.cardUID && req.body.cardUID.length > 5;
+
+        if (!uidValid) {
+            addHistory("RFID TAP (INVALID)", "RFID", "Triggered");
+            return res.json({ success: false });
+        }
+
         alarmStatus = (alarmStatus === "armed") ? "disarmed" : "armed";
 
         manualOverride = true;
         overrideUntil = Date.now() + 120000;
-
-        /* reset scheduler locks so auto still works later */
-        lastArmMinute = null;
-        lastDisarmMinute = null;
 
         addHistory(
             `RFID → ${alarmStatus.toUpperCase()}`,
             "RFID Scanner",
             alarmStatus === "armed" ? "Armed" : "Disarmed"
         );
+
+        return res.json({ success: true });
     }
 
     res.json({ success: true });
@@ -204,13 +186,12 @@ app.get("/status", (req, res) => {
     res.json({
         status: alarmStatus,
         autoArmTime,
-        autoDisarmTime,
-        autoMode
+        autoDisarmTime
     });
 });
 
 /* =========================
-   MANUAL CONTROL
+   MANUAL CONTROLS
 ========================= */
 
 app.post("/arm", (req, res) => {
@@ -251,9 +232,8 @@ app.post("/set-times", (req, res) => {
     autoArmTime = req.body.armTime;
     autoDisarmTime = req.body.disarmTime;
 
-    /* reset scheduler locks */
-    lastArmMinute = null;
-    lastDisarmMinute = null;
+    lastArmKey = null;
+    lastDisarmKey = null;
 
     addHistory(
         `AUTO TIMES UPDATED (${autoArmTime} - ${autoDisarmTime})`,
