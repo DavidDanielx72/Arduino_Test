@@ -2,11 +2,9 @@ const express = require("express");
 const cors = require("cors");
 
 const app = express();
-const PORT = 3000;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static("public"));
 
 /* =========================
    STATE
@@ -30,6 +28,7 @@ let autoDisarmTime = "06:30";
 function logSchedule() {
     console.log("SCHEDULE → ARM:", autoArmTime, "DISARM:", autoDisarmTime);
 }
+
 /* =========================
    TIME FORMATTER
 ========================= */
@@ -266,10 +265,8 @@ app.get("/command", (req, res) => {
     res.json({ status: alarmStatus });
 });
 
-
 app.get("/", (req, res) => {
     res.send("Arduino Server is running 🚀");
 });
-
 
 module.exports = app;
