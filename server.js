@@ -267,13 +267,15 @@ app.get("/command", (req, res) => {
 });
 
 /* =========================
-   START SERVER
+   ROOT ROUTE
 ========================= */
 
-app.listen(PORT, "0.0.0.0", () => {
-    console.log("SERVER RUNNING ON PORT", PORT);
-   
-   app.get("/", (req, res) => {
+app.get("/", (req, res) => {
     res.send("Arduino Server is running 🚀");
 });
-});
+
+/* =========================
+   EXPORT FOR VERCEL
+========================= */
+
+module.exports = app;
