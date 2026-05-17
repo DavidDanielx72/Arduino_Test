@@ -44,13 +44,6 @@ let autoArmTime = "16:00";
 let autoDisarmTime = "06:30";
 
 /* =========================
-   🔥 FIX ADDED: DAILY TRIGGERS
-========================= */
-
-let lastArmDate = null;
-let lastDisarmDate = null;
-
-/* =========================
    TIME FORMATTER
 ========================= */
 
@@ -84,7 +77,7 @@ function addHistory(description, source = "System", status = "Info") {
 }
 
 /* =========================
-   AUTO SCHEDULER (FIXED)
+   AUTO SCHEDULER
 ========================= */
 
 setInterval(() => {
@@ -96,30 +89,19 @@ setInterval(() => {
         ":" +
         String(now.getMinutes()).padStart(2, '0');
 
-    const today =
-        now.getFullYear() + "-" +
-        String(now.getMonth() + 1).padStart(2, "0") + "-" +
-        String(now.getDate()).padStart(2, "0");
-
     /* RELEASE MANUAL OVERRIDE */
     if (manualOverride && Date.now() > overrideUntil) {
         manualOverride = false;
     }
 
-    /* =========================
-       FIXED AUTO ARM
-    ========================= */
+    /* AUTO ARM */
+    if (currentTime === autoArmTime) {
 
-    if (!manualOverride) {
+        if (!manualOverride) {
 
-        if (
-            currentTime >= autoArmTime &&
-            lastArmDate !== today
-        ) {
             if (alarmStatus !== "armed") {
 
                 alarmStatus = "armed";
-                lastArmDate = today;
 
                 console.log("AUTO ARMED");
 
@@ -130,19 +112,16 @@ setInterval(() => {
                 );
             }
         }
+    }
 
-        /* =========================
-           FIXED AUTO DISARM
-        ========================= */
+    /* AUTO DISARM */
+    if (currentTime === autoDisarmTime) {
 
-        if (
-            currentTime >= autoDisarmTime &&
-            lastDisarmDate !== today
-        ) {
+        if (!manualOverride) {
+
             if (alarmStatus !== "disarmed") {
 
                 alarmStatus = "disarmed";
-                lastDisarmDate = today;
 
                 console.log("AUTO DISARMED");
 
@@ -155,7 +134,7 @@ setInterval(() => {
         }
     }
 
-}, 10000); // check every 10 seconds (more stable than 1s)
+}, 1000);
 
 /* =========================
    ESP32 EVENT RECEIVER
@@ -167,6 +146,7 @@ app.post("/event", (req, res) => {
 
     lastSeen = Date.now();
 
+    /* INTRUSION */
     if (req.body.type === "intrusion") {
 
         let msg = "INTRUSION DETECTED";
@@ -175,9 +155,14 @@ app.post("/event", (req, res) => {
             msg += ` (${req.body.distance}cm)`;
         }
 
-        addHistory(msg, "Sensor", "Triggered");
+        addHistory(
+            msg,
+            "Sensor",
+            "Triggered"
+        );
     }
 
+    /* RFID TOGGLE */
     if (
         req.body.type === "rfid_tap" &&
         req.body.status === "toggle"
@@ -189,12 +174,16 @@ app.post("/event", (req, res) => {
                 : "armed";
 
         manualOverride = true;
+
+        /* KEEP MANUAL MODE FOR 2 MINUTES */
         overrideUntil = Date.now() + 120000;
 
         addHistory(
             `RFID → ${alarmStatus.toUpperCase()}`,
             "RFID Scanner",
-            alarmStatus === "armed" ? "Armed" : "Disarmed"
+            alarmStatus === "armed"
+                ? "Armed"
+                : "Disarmed"
         );
     }
 
@@ -237,12 +226,22 @@ app.get("/status", (req, res) => {
 app.post("/arm", (req, res) => {
 
     alarmStatus = "armed";
+
     manualOverride = true;
-    overrideUntil = Date.now() + 120000;
 
-    addHistory("MANUAL ARM", "Dashboard", "Armed");
+    overrideUntil =
+        Date.now() + 120000;
 
-    res.json({ success: true, status: alarmStatus });
+    addHistory(
+        "MANUAL ARM",
+        "Dashboard",
+        "Armed"
+    );
+
+    res.json({
+        success: true,
+        status: alarmStatus
+    });
 });
 
 /* =========================
@@ -252,12 +251,22 @@ app.post("/arm", (req, res) => {
 app.post("/disarm", (req, res) => {
 
     alarmStatus = "disarmed";
+
     manualOverride = true;
-    overrideUntil = Date.now() + 120000;
 
-    addHistory("MANUAL DISARM", "Dashboard", "Disarmed");
+    overrideUntil =
+        Date.now() + 120000;
 
-    res.json({ success: true, status: alarmStatus });
+    addHistory(
+        "MANUAL DISARM",
+        "Dashboard",
+        "Disarmed"
+    );
+
+    res.json({
+        success: true,
+        status: alarmStatus
+    });
 });
 
 /* =========================
@@ -272,15 +281,22 @@ app.post("/toggle", (req, res) => {
             : "armed";
 
     manualOverride = true;
-    overrideUntil = Date.now() + 120000;
+
+    overrideUntil =
+        Date.now() + 120000;
 
     addHistory(
         `MANUAL TOGGLE ${alarmStatus.toUpperCase()}`,
         "Dashboard",
-        alarmStatus === "armed" ? "Armed" : "Disarmed"
+        alarmStatus === "armed"
+            ? "Armed"
+            : "Disarmed"
     );
 
-    res.json({ success: true, status: alarmStatus });
+    res.json({
+        success: true,
+        status: alarmStatus
+    });
 });
 
 /* =========================
@@ -291,10 +307,6 @@ app.post("/set-times", (req, res) => {
 
     autoArmTime = req.body.armTime;
     autoDisarmTime = req.body.disarmTime;
-
-    /* RESET DAILY TRACKERS (IMPORTANT FIX) */
-    lastArmDate = null;
-    lastDisarmDate = null;
 
     addHistory(
         `AUTO TIMES UPDATED (${autoArmTime} - ${autoDisarmTime})`,
@@ -317,12 +329,20 @@ app.get("/history", (req, res) => {
     res.json(history);
 });
 
+/* ✅ FIX ADDED (THIS WAS MISSING FOR YOUR FRONTEND) */
+app.get("/api/history", (req, res) => {
+    res.json(history);
+});
+
 /* =========================
    COMMAND
 ========================= */
 
 app.get("/command", (req, res) => {
-    res.json({ status: alarmStatus });
+
+    res.json({
+        status: alarmStatus
+    });
 });
 
 /* =========================
@@ -330,7 +350,10 @@ app.get("/command", (req, res) => {
 ========================= */
 
 app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, "public", "index.html"));
+
+    res.sendFile(
+        path.join(__dirname, "public", "index.html")
+    );
 });
 
 /* =========================
@@ -338,5 +361,9 @@ app.get("/", (req, res) => {
 ========================= */
 
 app.listen(PORT, "0.0.0.0", () => {
-    console.log("SERVER RUNNING ON PORT", PORT);
+
+    console.log(
+        "SERVER RUNNING ON PORT",
+        PORT
+    );
 });
