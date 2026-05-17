@@ -1,0 +1,310 @@
+<!-- ========================= set-alarm.html ========================= -->
+<!DOCTYPE html>
+<html class="h-full" lang="en">
+
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>BEEP Security Dashboard</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+
+<style>
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #0d0d0d;
+  color: #e5e7eb;
+}
+.glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.sidebar-active {
+  background: rgba(45, 212, 191, 0.1);
+  border-right: 2px solid #2dd4bf;
+  color: #2dd4bf;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+</style>
+
+</head>
+
+<body class="flex h-screen overflow-hidden">
+
+<aside class="w-64 flex-shrink-0 bg-[#0c0c0c] flex flex-col border-r border-white/5">
+
+<div class="p-8 pb-12">
+<h1 class="text-xl font-bold tracking-widest">BEEP</h1>
+</div>
+
+<nav class="flex-1 space-y-2 px-4">
+
+<a class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-white/5 transition-colors"
+href="index.html">
+<span class="text-sm font-medium">Overview</span>
+</a>
+
+<a class="flex items-center space-x-3 px-4 py-3 rounded-lg sidebar-active"
+href="set-alarm.html">
+<span class="text-sm font-medium">Set Alarm Time</span>
+</a>
+
+<a class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-white/5 transition-colors"
+href="history.html">
+<span class="text-sm font-medium">History</span>
+</a>
+
+</nav>
+
+<div class="p-6">
+<div class="bg-[#121212] p-4 rounded-xl flex items-center space-x-3 border border-white/5">
+<div class="w-10 h-10 rounded-full bg-blue-500/80 flex-shrink-0"></div>
+<div>
+<p class="text-xs font-bold text-white">Admin 01</p>
+<p class="text-[10px] text-blue-400">Power User</p>
+</div>
+</div>
+</div>
+
+</aside>
+
+<main class="flex-1 overflow-y-auto bg-[#0d0d0d] scrollbar-hide">
+
+<header class="sticky top-0 z-10 flex items-center justify-between px-10 py-6 bg-[#0d0d0d]/80 backdrop-blur-sm">
+<h2 class="text-xl font-bold">Security Dashboard</h2>
+</header>
+
+<div class="px-10 pb-10 space-y-8">
+
+<div class="flex gap-6 h-48">
+
+<div class="w-64 glass-card rounded-3xl p-6 flex flex-col justify-between">
+
+<div>
+<p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+Next Scheduled
+</p>
+
+<h4 id="next-scheduled" class="text-2xl font-bold mt-1">--:-- → --:--</h4>
+</div>
+
+<p class="text-[10px] text-gray-600">
+Saved schedule will appear here
+</p>
+
+</div>
+
+</div>
+
+<div class="glass-card rounded-3xl p-8">
+
+<div class="flex justify-between items-start mb-8">
+<div>
+<h2 class="text-xl font-bold">Configure Activation</h2>
+<p class="text-sm text-gray-500">Set ARM then DISARM schedule</p>
+</div>
+
+<span class="text-[10px] text-teal-400 uppercase tracking-widest font-bold">
+2-Step Scheduling
+</span>
+</div>
+
+<!-- TIME PICKER -->
+<div class="flex justify-center gap-10 items-center">
+
+<div class="text-center select-none">
+<button id="hour-up">▲</button>
+<div id="hour-display" class="text-7xl text-teal-400">16</div>
+<button id="hour-down">▼</button>
+</div>
+
+<div class="text-5xl">:</div>
+
+<div class="text-center select-none">
+<button id="minute-up">▲</button>
+<div id="minute-display" class="text-7xl text-teal-400">00</div>
+<button id="minute-down">▼</button>
+</div>
+
+</div>
+
+<!-- MANUAL INPUT -->
+<div class="mt-6 flex justify-center">
+  <input
+    id="time-input"
+    type="text"
+    placeholder="HH:MM (e.g. 16:00)"
+    class="bg-white/5 border border-white/10 text-white text-center rounded-xl px-4 py-2 w-48"
+  />
+</div>
+
+<div class="mt-8 flex justify-between">
+<label><input type="checkbox" id="repeat-toggle"> Repeat</label>
+<label><input type="checkbox" id="rfid-toggle"> RFID</label>
+</div>
+
+<button id="save-btn" class="w-full mt-6 bg-teal-400 text-black font-bold py-4 rounded-xl">
+SAVE ARM TIME
+</button>
+
+</div>
+
+</div>
+
+</main>
+
+<script>
+let hour = 16;
+let minute = 0;
+let mode = "ARM";
+
+const hourDisplay = document.getElementById('hour-display');
+const minuteDisplay = document.getElementById('minute-display');
+const nextScheduled = document.getElementById('next-scheduled');
+const saveBtn = document.getElementById('save-btn');
+const timeInput = document.getElementById('time-input');
+
+function updateDisplay() {
+  hourDisplay.textContent = String(hour).padStart(2, '0');
+  minuteDisplay.textContent = String(minute).padStart(2, '0');
+
+  if (timeInput) {
+    timeInput.value = `${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')}`;
+  }
+
+  saveBtn.textContent =
+    mode === "ARM" ? "SAVE ARM TIME" : "SAVE DISARM TIME";
+}
+
+/* Scroll wheel for set alarm page */
+function attachScroll(el, type) {
+  el.addEventListener("wheel", (e) => {
+    e.preventDefault();
+
+    if (type === "hour") {
+      hour = (hour + (e.deltaY < 0 ? 1 : -1) + 24) % 24;
+    } else {
+      minute = (minute + (e.deltaY < 0 ? 1 : -1) + 60) % 60;
+    }
+
+    updateDisplay();
+  });
+}
+
+/* Input and enter for set alarm page*/
+if (timeInput) {
+  timeInput.addEventListener("input", (e) => {
+    const match = e.target.value.match(/^(\d{1,2}):(\d{1,2})$/);
+    if (match) {
+      hour = Math.min(23, parseInt(match[1]));
+      minute = Math.min(59, parseInt(match[2]));
+      updateDisplay();
+    }
+  });
+
+  /* Press enter key to save time which has been set in set alarm page */
+  timeInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+
+      const match = timeInput.value.match(/^(\d{1,2}):(\d{1,2})$/);
+
+      if (match) {
+        hour = Math.min(23, parseInt(match[1]));
+        minute = Math.min(59, parseInt(match[2]));
+        updateDisplay();
+      }
+
+      saveData(); // triggers same flow as button
+    }
+  });
+}
+
+/* load server */
+async function loadFromServer() {
+  try {
+    const res = await fetch('/status');
+    const data = await res.json();
+
+    if (data.autoArmTime && data.autoDisarmTime) {
+      const [h, m] = data.autoArmTime.split(':');
+      hour = parseInt(h);
+      minute = parseInt(m);
+
+      nextScheduled.textContent =
+        data.autoArmTime + " → " + data.autoDisarmTime;
+    }
+
+    updateDisplay();
+  } catch (e) {}
+}
+
+function loadLocal() {
+  const saved = JSON.parse(localStorage.getItem('alarmData'));
+  if (saved) {
+    document.getElementById('repeat-toggle').checked = saved.repeat;
+    document.getElementById('rfid-toggle').checked = saved.rfid;
+  }
+}
+
+/* Save */
+async function saveData() {
+
+  const time =
+    `${String(hour).padStart(2,'0')}:${String(minute).padStart(2,'0')}`;
+
+  let armTime = localStorage.getItem("armTime");
+  let disarmTime = localStorage.getItem("disarmTime");
+
+  if (mode === "ARM") {
+    armTime = time;
+    localStorage.setItem("armTime", armTime);
+    mode = "DISARM";
+    nextScheduled.textContent = `${armTime} → --:--`;
+    alert("ARM TIME SAVED. Now set DISARM TIME.");
+    updateDisplay();
+    return;
+  }
+
+  if (mode === "DISARM") {
+    disarmTime = time;
+    localStorage.setItem("disarmTime", disarmTime);
+
+    const savedArm = localStorage.getItem("armTime");
+
+    await fetch('/set-times', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ armTime: savedArm, disarmTime })
+    });
+
+    nextScheduled.textContent = `${savedArm} → ${disarmTime}`;
+    mode = "ARM";
+
+    alert("FULL SCHEDULE SAVED");
+    updateDisplay();
+    return;
+  }
+}
+
+/* Buttons on set alarm page */
+document.getElementById('hour-up').onclick = () => { hour=(hour+1)%24; updateDisplay(); };
+document.getElementById('hour-down').onclick = () => { hour=(hour-1+24)%24; updateDisplay(); };
+document.getElementById('minute-up').onclick = () => { minute=(minute+1)%60; updateDisplay(); };
+document.getElementById('minute-down').onclick = () => { minute=(minute-1+60)%60; updateDisplay(); };
+
+attachScroll(document.getElementById("hour-display"), "hour");
+attachScroll(document.getElementById("minute-display"), "minute");
+
+saveBtn.onclick = saveData;
+
+
+updateDisplay();
+loadLocal();
+loadFromServer();
+</script>
+
+</body>
+</html>

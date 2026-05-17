@@ -1,0 +1,251 @@
+<!-- ========================= index.html ========================= -->
+<!DOCTYPE html>
+<html class="h-full" lang="en" style="">
+
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>BEEP Security Dashboard</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+
+<style>
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #0d0d0d;
+  color: #e5e7eb;
+}
+.glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.sidebar-active {
+  background: rgba(45, 212, 191, 0.1);
+  border-right: 2px solid #2dd4bf;
+  color: #2dd4bf;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+</style>
+
+</head>
+
+<body class="flex h-screen overflow-hidden">
+
+<!-- Side panel navbar for Beep -->
+<aside class="w-64 flex-shrink-0 bg-[#0c0c0c] flex flex-col border-r border-white/5">
+
+<div class="p-8 pb-12">
+<h1 class="text-xl font-bold tracking-widest">BEEP</h1>
+</div>
+
+<nav class="flex-1 space-y-2 px-4">
+
+<a class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-white/5 transition-colors" href="index.html">
+<span class="text-sm font-medium">Overview</span>
+</a>
+
+<a class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-white/5 transition-colors" href="set-alarm.html">
+<span class="text-sm font-medium">Set Alarm Time</span>
+</a>
+
+<a class="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-white/5 transition-colors" href="history.html">
+<span class="text-sm font-medium">History</span>
+</a>
+
+</nav>
+
+<div class="p-6">
+<div class="bg-[#121212] p-4 rounded-xl flex items-center space-x-3 border border-white/5">
+<div class="w-10 h-10 rounded-full bg-blue-500/80 flex-shrink-0"></div>
+<div>
+<p class="text-xs font-bold text-white">Admin 01</p>
+<p class="text-[10px] text-blue-400">Power User</p>
+</div>
+</div>
+</div>
+
+</aside>
+
+<!-- Main code section -->
+<main class="flex-1 overflow-y-auto bg-[#0d0d0d] scrollbar-hide">
+
+<header class="sticky top-0 z-10 flex items-center justify-between px-10 py-6 bg-[#0d0d0d]/80 backdrop-blur-sm">
+<h2 class="text-xl font-bold">Security Dashboard</h2>
+</header>
+
+<div class="px-10 pb-10 space-y-8">
+
+<!-- Top row of overview page -->
+<div class="flex gap-6 h-48">
+
+<!-- Card to show status -->
+<div class="flex-1 glass-card rounded-3xl p-8 flex items-center justify-between" id="status-card">
+
+<div class="flex items-center space-x-8">
+
+<div class="w-20 h-20 rounded-full border-[3px] flex items-center justify-center relative border-teal-500/30"
+id="status-icon-container">
+
+<svg class="w-8 h-8 text-teal-500" fill="currentColor" id="status-icon-locked" viewBox="0 0 24 24">
+<path clip-rule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3A5.25 5.25 0 0012 1.5zm-3.75 5.25a3.75 3.75 0 117.5 0v3h-7.5v-3z" fill-rule="evenodd"></path>
+</svg>
+
+<svg class="w-8 h-8 text-red-500 hidden" fill="currentColor" id="status-icon-unlocked" viewBox="0 0 24 24">
+<path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6h2c0-1.66 1.34-3 3-3s3 1.34 3 3v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm0 12H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"></path>
+</svg>
+
+</div>
+
+<div>
+<p class="text-xs font-bold uppercase tracking-widest text-red-500" id="status-label">Current Status</p>
+<h3 class="text-4xl font-black mt-1" id="status-title">SYSTEM ARMED</h3>
+<p class="text-sm text-gray-500 mt-1" id="status-subtitle">
+Active Monitoring:
+<span class="text-gray-300">Engineering Lab 1.29</span>
+</p>
+</div>
+
+</div>
+
+<button class="border border-white/20 hover:bg-white/5 text-white font-black text-sm py-4 px-8 rounded-xl flex items-center space-x-3"
+id="toggle-btn">
+<span id="btn-text">DISARM SYSTEM</span>
+</button>
+
+</div>
+
+<!-- Scheduled automatic alarm time -->
+<div class="w-64 glass-card rounded-3xl p-6 flex flex-col justify-between">
+
+<div class="flex justify-between items-start">
+<div>
+<p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Next Scheduled</p>
+<h4 class="text-2xl font-bold mt-1" id="next-scheduled">--:--</h4>
+</div>
+
+<div class="text-orange-400">
+<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+</div>
+
+<p class="text-[10px] text-gray-600 mt-4">Saved schedule will appear here</p>
+
+</div>
+
+</div>
+
+<!-- Grid -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+<!-- RFID -->
+<div class="glass-card rounded-3xl p-6 flex flex-col items-center text-center space-y-4">
+<div class="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center border border-white/10">
+<svg class="w-8 h-8 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<h5 class="text-sm font-bold uppercase">RFID Authentication</h5>
+<p class="text-xs text-gray-400">Hold tag near reader to toggle system state</p>
+</div>
+
+<!-- Door status of where alarm is mounted -->
+<div class="glass-card rounded-3xl p-6 space-y-4">
+<div class="bg-white/5 p-4 rounded-2xl flex items-center justify-between border border-white/5">
+<div class="flex items-center space-x-3">
+<div class="w-2 h-2 rounded-full bg-teal-400" id="door-status-dot"></div>
+<span class="text-sm text-gray-200" id="door-status-text">
+Door Locked / Secure
+</span>
+</div>
+</div>
+</div>
+
+<!-- Authorizationn status -->
+<div class="glass-card rounded-3xl p-6 flex flex-col justify-between">
+<div>
+<p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Authorization Status</p>
+<h4 class="text-lg font-bold mt-2">Keycard #8842</h4>
+</div>
+
+<div class="flex items-center justify-between bg-teal-400/10 border border-teal-400/20 p-3 rounded-xl mt-4">
+<span class="text-xs font-bold text-teal-400">AUTHORIZED ACCESS</span>
+</div>
+</div>
+
+</div>
+
+</div>
+
+<!-- ========================= Three most recent history items ========================= -->
+<div class="glass-card rounded-3xl border border-white/5 overflow-hidden">
+
+  <div class="p-6 flex justify-between items-center border-b border-white/5">
+    <div>
+      <h2 class="text-sm font-bold text-gray-300">Recent Activity</h2>
+      <p class="text-[11px] text-gray-500">Last 3 recorded events</p>
+    </div>
+
+    <span class="text-[10px] uppercase tracking-widest text-teal-400 font-bold">
+      Live Feed
+    </span>
+  </div>
+
+  <div id="history-preview" class="divide-y divide-white/5">
+  </div>
+
+</div>
+
+<!-- FOOTER -->
+<footer class="mt-auto border-t border-gray-800/30 px-10 py-3 flex items-center justify-between text-[10px] text-gray-500 uppercase tracking-widest font-medium bg-[#0d0d0d] fixed bottom-0 left-64 right-0">
+<div>Status: System Active</div>
+</footer>
+
+</main>
+
+<script>
+async function loadRecentHistory() {
+  try {
+    const res = await fetch("/api/history");
+    const data = await res.json();
+
+    const container = document.getElementById("history-preview");
+    if (!container) return;
+
+
+    const recent = data.slice(-3).reverse();
+
+    container.innerHTML = "";
+
+    recent.forEach(event => {
+      const item = document.createElement("div");
+      item.className = "flex items-center justify-between px-6 py-4";
+
+      item.innerHTML = `
+        <div class="flex flex-col">
+          <span class="text-sm text-white">${event.description}</span>
+          <span class="text-[11px] text-gray-500">${event.source}</span>
+        </div>
+        <div class="text-[11px] text-gray-400">${event.datetime}</div>
+      `;
+
+      container.appendChild(item);
+    });
+
+  } catch (err) {
+    console.error("Failed to load recent history:", err);
+  }
+}
+
+loadRecentHistory();
+setInterval(loadRecentHistory, 4000);
+</script>
+
+<script src="js/overview.js"></script>
+
+</body>
+</html>
