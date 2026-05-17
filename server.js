@@ -5,18 +5,13 @@ const path = require("path");
 const app = express();
 
 /* =========================
-   RENDER PORT FIX
+   PORT
 ========================= */
 
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
-
-/* =========================
-   STATIC PUBLIC FOLDER
-========================= */
-
 app.use(express.static(path.join(__dirname, "public")));
 
 /* =========================
@@ -29,11 +24,6 @@ let lastSeen = 0;
 
 let autoMode = true;
 let manualOverride = false;
-
-/* =========================
-   FIX: PREVENT AUTO REARM
-========================= */
-
 let overrideUntil = 0;
 
 /* =========================
@@ -44,15 +34,24 @@ let autoArmTime = "16:00";
 let autoDisarmTime = "06:30";
 
 /* =========================
-   🔥 FIX: DAILY RUN TRACKERS (IMPORTANT FIX)
+   SAFETY: TRACK LAST EXECUTION (FIXED PROPERLY)
 ========================= */
 
-let lastArmRunKey = null;
-let lastDisarmRunKey = null;
+let lastArmMinute = null;
+let lastDisarmMinute = null;
 
 /* =========================
-   TIME FORMATTER
+   TIME HELPERS
 ========================= */
+
+function getTimeParts() {
+    const now = new Date();
+    return {
+        hour: String(now.getHours()).padStart(2, "0"),
+        minute: String(now.getMinutes()).padStart(2, "0"),
+        dayKey: `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`
+    };
+}
 
 function formatTime() {
     return new Date().toLocaleString("en-GB", {
@@ -70,7 +69,6 @@ function formatTime() {
 ========================= */
 
 function addHistory(description, source = "System", status = "Info") {
-
     history.push({
         description,
         source,
@@ -78,83 +76,75 @@ function addHistory(description, source = "System", status = "Info") {
         datetime: formatTime()
     });
 
-    if (history.length > 50) {
-        history.shift();
-    }
+    if (history.length > 50) history.shift();
 }
 
 /* =========================
-   🔥 FIXED AUTO SCHEDULER (ROBUST + RELIABLE)
+   🔥 ROBUST AUTO SYSTEM (FIXED)
 ========================= */
 
 setInterval(() => {
 
-    const now = new Date();
-
-    const hour = String(now.getHours()).padStart(2, "0");
-    const minute = String(now.getMinutes()).padStart(2, "0");
+    const { hour, minute, dayKey } = getTimeParts();
     const currentTime = `${hour}:${minute}`;
 
-    const todayKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
-
-    /* release override */
+    /* release manual override safely */
     if (manualOverride && Date.now() > overrideUntil) {
         manualOverride = false;
     }
 
+    const armKey = `${dayKey}-ARM-${autoArmTime}`;
+    const disarmKey = `${dayKey}-DISARM-${autoDisarmTime}`;
+
     /* =========================
-       AUTO ARM (FIXED)
+       AUTO ARM (FIXED RELIABLE)
     ========================= */
 
-    if (!manualOverride && currentTime === autoArmTime) {
+    if (
+        currentTime === autoArmTime &&
+        lastArmMinute !== armKey
+    ) {
+        if (alarmStatus !== "armed") {
 
-        const armKey = todayKey + "-ARM";
+            alarmStatus = "armed";
 
-        if (lastArmRunKey !== armKey) {
-
-            if (alarmStatus !== "armed") {
-                alarmStatus = "armed";
-
-                addHistory("AUTO ARMED", "Scheduler", "Armed");
-                console.log("AUTO ARMED");
-            }
-
-            lastArmRunKey = armKey;
+            addHistory("AUTO ARMED", "Scheduler", "Armed");
+            console.log("AUTO ARMED");
         }
+
+        lastArmMinute = armKey;
     }
 
     /* =========================
-       AUTO DISARM (FIXED)
+       AUTO DISARM (FIXED RELIABLE)
     ========================= */
 
-    if (!manualOverride && currentTime === autoDisarmTime) {
+    if (
+        currentTime === autoDisarmTime &&
+        lastDisarmMinute !== disarmKey
+    ) {
+        if (alarmStatus !== "disarmed") {
 
-        const disarmKey = todayKey + "-DISARM";
+            alarmStatus = "disarmed";
 
-        if (lastDisarmRunKey !== disarmKey) {
-
-            if (alarmStatus !== "disarmed") {
-                alarmStatus = "disarmed";
-
-                addHistory("AUTO DISARMED", "Scheduler", "Disarmed");
-                console.log("AUTO DISARMED");
-            }
-
-            lastDisarmRunKey = disarmKey;
+            addHistory("AUTO DISARMED", "Scheduler", "Disarmed");
+            console.log("AUTO DISARMED");
         }
+
+        lastDisarmMinute = disarmKey;
     }
 
-}, 1000); // keep 1s for accuracy
+}, 1000);
 
 /* =========================
-   ESP32 EVENT RECEIVER
+   ESP32 EVENT RECEIVER (RFID FIXED)
 ========================= */
 
 app.post("/event", (req, res) => {
 
-    console.log("ESP32 EVENT:", req.body);
-
     lastSeen = Date.now();
+
+    console.log("ESP32 EVENT:", req.body);
 
     /* INTRUSION */
     if (req.body.type === "intrusion") {
@@ -168,26 +158,27 @@ app.post("/event", (req, res) => {
         addHistory(msg, "Sensor", "Triggered");
     }
 
-    /* RFID TOGGLE (UNCHANGED - WORKING LOGIC) */
+    /* =========================
+       RFID (FIXED: ALWAYS OVERRIDES CLEANLY)
+    ========================= */
+
     if (
         req.body.type === "rfid_tap" &&
         req.body.status === "toggle"
     ) {
-
-        alarmStatus =
-            (alarmStatus === "armed")
-                ? "disarmed"
-                : "armed";
+        alarmStatus = (alarmStatus === "armed") ? "disarmed" : "armed";
 
         manualOverride = true;
         overrideUntil = Date.now() + 120000;
 
+        /* reset scheduler locks so auto still works later */
+        lastArmMinute = null;
+        lastDisarmMinute = null;
+
         addHistory(
             `RFID → ${alarmStatus.toUpperCase()}`,
             "RFID Scanner",
-            alarmStatus === "armed"
-                ? "Armed"
-                : "Disarmed"
+            alarmStatus === "armed" ? "Armed" : "Disarmed"
         );
     }
 
@@ -199,12 +190,8 @@ app.post("/event", (req, res) => {
 ========================= */
 
 app.get("/device-status", (req, res) => {
-
-    const online =
-        (Date.now() - lastSeen) < 8000;
-
     res.json({
-        online,
+        online: (Date.now() - lastSeen) < 8000,
         alarmStatus
     });
 });
@@ -214,7 +201,6 @@ app.get("/device-status", (req, res) => {
 ========================= */
 
 app.get("/status", (req, res) => {
-
     res.json({
         status: alarmStatus,
         autoArmTime,
@@ -224,57 +210,34 @@ app.get("/status", (req, res) => {
 });
 
 /* =========================
-   ARM
+   MANUAL CONTROL
 ========================= */
 
 app.post("/arm", (req, res) => {
-
     alarmStatus = "armed";
-
     manualOverride = true;
     overrideUntil = Date.now() + 120000;
-
     addHistory("MANUAL ARM", "Dashboard", "Armed");
-
     res.json({ success: true, status: alarmStatus });
 });
-
-/* =========================
-   DISARM
-========================= */
 
 app.post("/disarm", (req, res) => {
-
     alarmStatus = "disarmed";
-
     manualOverride = true;
     overrideUntil = Date.now() + 120000;
-
     addHistory("MANUAL DISARM", "Dashboard", "Disarmed");
-
     res.json({ success: true, status: alarmStatus });
 });
 
-/* =========================
-   TOGGLE
-========================= */
-
 app.post("/toggle", (req, res) => {
-
-    alarmStatus =
-        (alarmStatus === "armed")
-            ? "disarmed"
-            : "armed";
-
+    alarmStatus = (alarmStatus === "armed") ? "disarmed" : "armed";
     manualOverride = true;
     overrideUntil = Date.now() + 120000;
 
     addHistory(
         `MANUAL TOGGLE ${alarmStatus.toUpperCase()}`,
         "Dashboard",
-        alarmStatus === "armed"
-            ? "Armed"
-            : "Disarmed"
+        alarmStatus === "armed" ? "Armed" : "Disarmed"
     );
 
     res.json({ success: true, status: alarmStatus });
@@ -285,13 +248,12 @@ app.post("/toggle", (req, res) => {
 ========================= */
 
 app.post("/set-times", (req, res) => {
-
     autoArmTime = req.body.armTime;
     autoDisarmTime = req.body.disarmTime;
 
-    /* RESET RUN TRACKERS */
-    lastArmRunKey = null;
-    lastDisarmRunKey = null;
+    /* reset scheduler locks */
+    lastArmMinute = null;
+    lastDisarmMinute = null;
 
     addHistory(
         `AUTO TIMES UPDATED (${autoArmTime} - ${autoDisarmTime})`,
@@ -299,24 +261,15 @@ app.post("/set-times", (req, res) => {
         "Updated"
     );
 
-    res.json({
-        success: true,
-        autoArmTime,
-        autoDisarmTime
-    });
+    res.json({ success: true, autoArmTime, autoDisarmTime });
 });
 
 /* =========================
    HISTORY
 ========================= */
 
-app.get("/history", (req, res) => {
-    res.json(history);
-});
-
-app.get("/api/history", (req, res) => {
-    res.json(history);
-});
+app.get("/history", (req, res) => res.json(history));
+app.get("/api/history", (req, res) => res.json(history));
 
 /* =========================
    COMMAND
