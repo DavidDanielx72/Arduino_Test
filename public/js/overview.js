@@ -65,12 +65,11 @@ function applyUI(state) {
 
 async function fetchStatus() {
   try {
-    const res = await fetch('/status');
+    const res = await fetch('/api/status');
     const data = await res.json();
 
     applyUI(data.status);
 
-    // optional schedule display
     if (nextScheduled && data.autoArmTime) {
       nextScheduled.textContent = data.autoArmTime;
     }
@@ -82,7 +81,7 @@ async function fetchStatus() {
 
 toggleBtn.addEventListener('click', async () => {
   try {
-    const res = await fetch('/toggle', {
+    const res = await fetch('/api/toggle', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
@@ -97,5 +96,4 @@ toggleBtn.addEventListener('click', async () => {
 });
 
 fetchStatus();
-
 setInterval(fetchStatus, 2000);
