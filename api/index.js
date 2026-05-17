@@ -266,16 +266,10 @@ app.get("/command", (req, res) => {
     res.json({ status: alarmStatus });
 });
 
-/* =========================
-   ROOT ROUTE
-========================= */
 
 app.get("/", (req, res) => {
     res.send("Arduino Server is running 🚀");
 });
 
-/* =========================
-   EXPORT FOR VERCEL
-========================= */
 
 module.exports = app;
