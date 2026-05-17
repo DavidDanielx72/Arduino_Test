@@ -329,6 +329,11 @@ app.get("/history", (req, res) => {
     res.json(history);
 });
 
+/* ✅ FIX ADDED (THIS WAS MISSING FOR YOUR FRONTEND) */
+app.get("/api/history", (req, res) => {
+    res.json(history);
+});
+
 /* =========================
    COMMAND
 ========================= */
